@@ -1,0 +1,1 @@
+# Connect to Google Calendar or Outlook. Implement functions to check existing events, check availability, create events, and handle API errors.

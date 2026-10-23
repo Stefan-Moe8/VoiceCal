@@ -1,0 +1,1 @@
+# Validate event fields, handle ambiguous dates, detect scheduling conflicts, and ensure the user confirms an event before it is created.

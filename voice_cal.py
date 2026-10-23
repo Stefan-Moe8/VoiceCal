@@ -1,0 +1,1 @@
+# Connect all the components. Accept the user's speech, obtain a transcription, call the LLM, validate the proposed event, request confirmation, execute the calendar tool, and speak the result.
