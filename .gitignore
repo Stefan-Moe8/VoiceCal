@@ -2,5 +2,9 @@
 .env
 .env.*
 !.env.example
+<<<<<<< HEAD
 # IAM & Admin service account key
 *.json
+=======
+*.venv
+>>>>>>> 3e6cca2 (Nothing)
