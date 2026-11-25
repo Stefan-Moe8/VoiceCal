@@ -5,4 +5,5 @@
 o365_token.txt
 # IAM & Admin service account key
 *.json
+credentials.json
 
