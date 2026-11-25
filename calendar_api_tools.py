@@ -231,21 +231,9 @@ def sign_in_google():
             # Allow http://localhost for local OAuth testing
             os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-            g_redirect_uri = 'http://localhost:8000'
-
             # Credentials (Google requires both client_id and client_secret)
-            g_client_config = {
-                'installed': {
-                    'client_id': '588810001980-8f0n1i5u4d9g82pj3eh7qbmu362te6rf.apps.googleusercontent.com',
-                    'client_secret': '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',
-                    'auth_uri': 'https://accounts.google.com/o/oauth2/v2/auth',
-                    'token_uri': 'https://oauth2.googleapis.com/token',
-                }
-            }
 
-            g_flow = Flow.from_client_config(
-                g_client_config, scopes=g_scopes, redirect_uri=g_redirect_uri
-            )
+            g_flow = Flow.from_client_secrets_file(client_secrets_file="credentials.json",scopes=g_scopes)
 
             g_auth_response = {}
 
@@ -347,18 +335,9 @@ def change_account_google():
         g_redirect_uri = 'http://localhost:8000'
 
         # Credentials (Google requires both client_id and client_secret)
-        g_client_config = {
-            'installed': {
-                'client_id': '588810001980-8f0n1i5u4d9g82pj3eh7qbmu362te6rf.apps.googleusercontent.com',
-                'client_secret': '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',
-                'auth_uri': 'https://accounts.google.com/o/oauth2/v2/auth',
-                'token_uri': 'https://oauth2.googleapis.com/token',
-            }
-        }
 
-        g_flow = Flow.from_client_config(
-            g_client_config, scopes=g_scopes, redirect_uri=g_redirect_uri
-        )
+        g_flow = Flow.from_client_secrets_file(client_secrets_file="credentials.json",scopes=g_scopes)
+        
 
         g_auth_response = {}
 
@@ -472,3 +451,4 @@ def set_calendar_site(calendar_provider: str):
         change_calendar_account = change_account_outlook
         read_calendar = read_calendar_outlook
         add_event = add_event_outlook
+
