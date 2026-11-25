@@ -7,4 +7,9 @@
 *.json
 =======
 *.venv
->>>>>>> 3e6cca2 (Nothing)
+o365_token.txt
+token.json
+=======
+# IAM & Admin service account key
+*.json
+>>>>>>> 874b6d5e4e3cf782400707f2b5b7ef3ddc538d6f
