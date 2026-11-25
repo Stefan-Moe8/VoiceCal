@@ -56,7 +56,7 @@ def read_calendar_google(requestedInfo: list = ['summary'], minDateTime : str = 
     if minDateTime == 'now':
         minDateTime = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
 
-    events_result = (calendar.events().list(calendarId='primary', timeMin = minDateTime, maxResults = maxDateTime, singleEvents = True, orderBy = "startTime").execute())
+    events_result = (calendar.events().list(calendarId='primary', timeMin = minDateTime, timeMax = maxDateTime, maxResults = maxEntries, singleEvents = True, orderBy = "startTime", q=query).execute())
     events = events_result.get("items", [])
     returnEvents = {}
     for event in events:
@@ -65,7 +65,7 @@ def read_calendar_google(requestedInfo: list = ['summary'], minDateTime : str = 
         for key in requestedInfo:
             if key in event:
                 if key == 'start' or key == 'end':
-                    returnEvents[event['etag']][key] = event[key]['dateTime']
+                    returnEvents[event['etag']][key] =  event[key].get('dateTime') or event[key].get('date')
                 else:
                     returnEvents[event['etag']][key] = event[key]
             else:
@@ -233,7 +233,7 @@ def sign_in_google():
 
             # Credentials (Google requires both client_id and client_secret)
 
-            g_flow = Flow.from_client_secrets_file(client_secrets_file="credentials.json",scopes=g_scopes)
+            g_flow = Flow.from_client_secrets_file(client_secrets_file="credentials.json",scopes=g_scopes,redirect_uri = "http://localhost:8000")
 
             g_auth_response = {}
 
@@ -336,7 +336,7 @@ def change_account_google():
 
         # Credentials (Google requires both client_id and client_secret)
 
-        g_flow = Flow.from_client_secrets_file(client_secrets_file="credentials.json",scopes=g_scopes)
+        g_flow = Flow.from_client_secrets_file(client_secrets_file="credentials.json",scopes=g_scopes,redirect_uri = "http://localhost:8000")
         
 
         g_auth_response = {}
@@ -451,4 +451,3 @@ def set_calendar_site(calendar_provider: str):
         change_calendar_account = change_account_outlook
         read_calendar = read_calendar_outlook
         add_event = add_event_outlook
-
