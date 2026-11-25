@@ -30,6 +30,11 @@ code .
 ```bash
 # Copy this file to .env (in the same folder as the notebooks) and paste your key.
 OPENAI_API_KEY=sk-your-key-here
+GOOGLE_SERVICE_ACCOUNT_FILE=service-account.json
+# Usually your email, e.g. you@gmail.com
+CALENDAR_ID=you@gmail.com
+# An IANA name, e.g. America/Denver
+CALENDAR_TZ=America/Denver
 ```
 ## Daily Workflow
 
