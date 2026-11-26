@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoiceCal</title>
+  <style>
+    :root { color-scheme: light dark; --line: rgba(128, 128, 128, .35); }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 1.5rem auto; padding: 0 1rem; }
+    header { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+    header h1 { flex: 1; font-size: 1.3rem; margin: 0; }
+    #grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+            border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
+    .dow, .cell { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .dow { padding: .4rem; font-size: .8rem; font-weight: 600; text-align: center; }
+    .cell { min-height: 96px; padding: .25rem; font-size: .78rem; }
+    .num { display: inline-block; font-weight: 600; margin-bottom: .15rem; }
+    .today .num { background: #2563eb; color: white; border-radius: 999px; padding: 0 .4rem; }
+    .ev { background: rgba(37, 99, 235, .22); border-radius: 4px; padding: 1px 4px; margin-top: 2px;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .more { opacity: .7; margin-top: 2px; }
+    #asked { opacity: .7; margin: 1rem 0 .25rem; min-height: 1.2em; }
+    #answer { margin: 0 0 .75rem; min-height: 1.4em; white-space: pre-wrap; }
+    form { display: flex; gap: .5rem; }
+    input { flex: 1; padding: .6rem; font-size: 1rem; }
+    button { padding: .6rem .9rem; font-size: 1rem; cursor: pointer; }
+    #status { font-size: .85rem; opacity: .7; min-height: 1.2em; margin-top: .4rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <button id="prev" aria-label="Previous month">‹</button>
+    <h1 id="monthTitle"></h1>
+    <button id="today">Today</button>
+    <button id="next" aria-label="Next month">›</button>
+  </header>
+
+  <div id="grid"></div>
+
+  <p id="asked"></p>
+  <p id="answer"></p>
+  <form id="form">
+    <input id="msg" placeholder="Ask about your calendar or add an event..." autocomplete="off">
+    <button type="button" id="mic" aria-label="Record voice">🎤</button>
+    <button id="send">Send</button>
+  </form>
+  <div id="status"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const pad = (n) => String(n).padStart(2, "0");
+    const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    let year, month; // month is 0-11 here
+    let lastId = null; // lets the model remember earlier turns
+    let recorder, chunks = [];
+
+    function setStatus(text) { $("status").textContent = text; }
+
+    function fmtTime(iso) {
+      if (!iso || iso.length <= 10) return ""; // all-day events have a date but no time
+      let h = Number(iso.slice(11, 13));
+      const m = iso.slice(14, 16);
+      const ampm = h >= 12 ? "PM" : "AM";
+      h = h % 12 || 12;
+      return `${h}:${m} ${ampm}`;
+    }
+
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text; // textContent keeps event titles from injecting HTML
+      return node;
+    }
+
+    async function loadMonth() {
+      $("monthTitle").textContent = new Date(year, month, 1)
+        .toLocaleString("en-US", { month: "long", year: "numeric" });
+
+      let events = [];
+      try {
+        const res = await fetch(`/api/events?year=${year}&month=${month + 1}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        events = data.events;
+      } catch (e) {
+        setStatus("Could not load calendar: " + e.message);
+      }
+
+      const byDay = {};
+      for (const ev of events) {
+        const key = (ev.start || "").slice(0, 10); // YYYY-MM-DD in the calendar's timezone
+        (byDay[key] ||= []).push(ev);
+      }
+
+      const grid = $("grid");
+      grid.replaceChildren();
+      for (const name of DAYS) grid.appendChild(el("div", "dow", name));
+
+      const leading = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const now = new Date();
+      const todayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+      for (let i = 0; i < leading; i++) grid.appendChild(el("div", "cell"));
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = `${year}-${pad(month + 1)}-${pad(d)}`;
+        const cell = el("div", key === todayKey ? "cell today" : "cell");
+        cell.appendChild(el("span", "num", d));
+        const list = byDay[key] || [];
+        for (const ev of list.slice(0, 3)) {
+          const label = `${fmtTime(ev.start)} ${ev.summary}`.trim();
+          const chip = el("div", "ev", label);
+          chip.title = label;
+          cell.appendChild(chip);
+        }
+        if (list.length > 3) cell.appendChild(el("div", "more", `+${list.length - 3} more`));
+        grid.appendChild(cell);
+      }
+    }
+
+    function shiftMonth(delta) {
+      const d = new Date(year, month + delta, 1);
+      year = d.getFullYear();
+      month = d.getMonth();
+      loadMonth();
+    }
+
+    function goToday() {
+      const now = new Date();
+      year = now.getFullYear();
+      month = now.getMonth();
+      loadMonth();
+    }
+
+    function setBusy(busy) {
+      $("send").disabled = busy;
+      $("mic").disabled = busy;
+    }
+
+    async function send() {
+      const text = $("msg").value.trim();
+      if (!text) return;
+      setBusy(true);
+      setStatus("");
+      $("asked").textContent = "You: " + text;
+      $("answer").textContent = "Thinking...";
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, previous_response_id: lastId }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        lastId = data.response_id;
+        $("answer").textContent = data.reply;
+        $("msg").value = ""; // cleared only on success, so a failed request can be retried
+      } catch (e) {
+        $("answer").textContent = "Error: " + e.message;
+      }
+      setBusy(false);
+      loadMonth(); // the model may have created an event
+    }
+
+    $("form").addEventListener("submit", (e) => { e.preventDefault(); send(); });
+    $("prev").addEventListener("click", () => shiftMonth(-1));
+    $("next").addEventListener("click", () => shiftMonth(1));
+    $("today").addEventListener("click", goToday);
+
+    $("mic").addEventListener("click", async () => {
+      if (recorder && recorder.state === "recording") { recorder.stop(); return; }
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e) {
+        setStatus("Microphone unavailable: " + e.message);
+        return;
+      }
+      recorder = new MediaRecorder(stream);
+      chunks = [];
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        $("mic").textContent = "🎤";
+        setStatus("Transcribing...");
+        const blob = new Blob(chunks, { type: recorder.mimeType });
+        const ext = recorder.mimeType.includes("mp4") ? "m4a" : "webm";
+        const form = new FormData();
+        form.append("audio", blob, "speech." + ext);
+        try {
+          const res = await fetch("/api/transcribe", { method: "POST", body: form });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          const box = $("msg");
+          box.value = (box.value ? box.value + " " : "") + data.text; // fills the box, does not send
+          box.focus();
+          setStatus("");
+        } catch (e) {
+          setStatus("Transcription failed: " + e.message);
+        }
+      };
+      recorder.start();
+      $("mic").textContent = "⏹";
+      setStatus("Listening... click the button again to stop.");
+    });
+
+    goToday();
+  </script>
+</body>
+</html>
