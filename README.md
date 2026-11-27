@@ -35,6 +35,8 @@ GOOGLE_SERVICE_ACCOUNT_FILE=service-account.json
 CALENDAR_ID=you@gmail.com
 # An IANA name, e.g. America/Denver
 CALENDAR_TZ=America/Denver
+# Used to log AI usage
+LOG_ID="this-can-be-anythng(a-z,A-Z,0-9)"
 ```
 
 #### Setup for `GOOGLE_SERVICE_ACCOUNT_FILE`
