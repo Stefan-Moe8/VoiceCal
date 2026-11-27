@@ -1,5 +1,11 @@
+import os
+import re
 import pandas as pd
 from config import MODEL, EMBED_MODEL, MODERATION_MODEL, TTS_MODEL, STT_MODEL
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # USD per 1M tokens: (input, cached input, output), standard tier. Update these if you change a model above.
 # Prices change, so check https://developers.openai.com/api/docs/pricing
@@ -37,6 +43,7 @@ def log_usage(label, model, seconds, input_tokens=0, output_tokens=0, cached_tok
         "cost_usd": cost,
     }
     USAGE_LOG.append(row)
+    output_to_file(row)
     return row
 
 
@@ -66,3 +73,28 @@ def usage_summary(rows=None):
     summary.loc["total"] = summary.sum()
     counts = ["calls", "input", "cached", "output", "reasoning"]
     return summary.astype({c: int for c in counts}).round({"audio_s": 1, "seconds": 1, "cost_usd": 5})
+
+
+def test_log_id(id,t,e):
+    """Test that the log id is a valid file name with A-Z, a-z, 0-9, or _"""
+    if not bool(re.fullmatch(r"[A-Za-z0-9_]+", id)):
+        raise ValueError(f"LOG_ID must only contain A-Z, a-z, 0-9, and _. Failed to log the following:\n{t}{e}")
+def get_log_id(t, e):
+    """Get log id from environment"""
+    log_id = os.getenv("LOG_ID")
+    if not log_id:
+        raise ValueError(f"LOG_ID not found. Put LOG_ID=\"...\" into your .env. Use characters A-Z, a-z, 0-9, and _. Failed to log the following:\n{t}{e}")
+    test_log_id(log_id,t,e)
+    return log_id
+
+def output_to_file(row):
+    "Using the LOG_ID from environment, log the response to a file"
+    title = "label, model, input, cached, output, reasoning, audio_s, seconds, cost_usd\n"
+    entry = f"{row["label"]}, {row["model"]}, {row["input"]}, {row["cached"]}, {row["output"]}, {row["reasoning"]}, {row["audio_s"]}, {row["seconds"]}, {row["cost_usd"]}\n"
+    log_id = get_log_id(title, entry)
+    path_name = f"logs/{log_id}.csv"
+    if not Path(path_name).is_file():
+        with open(path_name, "w") as file:
+            file.write(title)
+    with open(path_name, "a") as file:
+        file.write(entry)
