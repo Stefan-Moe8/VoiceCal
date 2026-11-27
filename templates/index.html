@@ -1,4 +1,4 @@
-<!-- Ai generated from claude-->
+<!-- Parts of this file was generated with the help of Claude -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -6,59 +6,114 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VoiceCal</title>
   <style>
-    :root { color-scheme: light dark; --line: rgba(128, 128, 128, .35); }
+    /* ===== Page setup ===== */
     * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 1.5rem auto; padding: 0 1rem; }
+    /* Center the page, cap its width, and use the system's default font */
+    body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem; }
+
+    /* ===== Layout ===== */
+    /* Grid layout used to split frame into two panels, one to contain the microphone button and text box, other for the calendar */
+    .layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+    @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+    /* ===== Left column: mic on top, text box below ===== */
+    /* Stack the mic, status line, text box, and reply vertically and center them */
+    .side { display: flex; flex-direction: column; align-items: center; gap: .75rem; }
+    /* Large red circular microphone button (a 96px square with fully rounded corners) */
+    #mic { width: 96px; height: 96px; padding: 0; border: none; border-radius: 50%;
+       display: flex; align-items: center; justify-content: center;
+       font-size: 2.6rem; line-height: 1; color: white; background: #dc2626;
+       box-shadow: 0 2px 8px rgba(0, 0, 0, .25); cursor: pointer; }
+    /* While recording, the button pulses with an expanding ring (the JS adds the "recording" class) */
+    #mic.recording { animation: pulse 1.2s infinite; }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, .6); }
+      70%  { box-shadow: 0 0 0 16px rgba(220, 38, 38, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+    }
+    #mic:disabled { opacity: .5; cursor: not-allowed; }
+    /* Small status line under the mic: "Listening...", "Transcribing...", or errors */
+    #status { font-size: .85rem; color: #555; min-height: 1.2em; text-align: center; }
+    /* The text box and Send button, stacked and full width */
+    #form { width: 100%; display: flex; flex-direction: column; gap: .5rem; }
+    #msg { width: 100%; padding: .6rem; font: inherit; resize: vertical; }
+    #send { padding: .6rem; font-size: 1rem; cursor: pointer; }
+    /* Echo of the last request, and the model's reply below it */
+    #asked { width: 100%; margin: .5rem 0 0; color: #555; min-height: 1.2em; }
+    #answer { width: 100%; margin: 0; min-height: 1.4em; white-space: pre-wrap; }
+
+    /* ===== Right column: calendar ===== */
+    /* Month title with the previous, Today, and next buttons */
     header { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
     header h1 { flex: 1; font-size: 1.3rem; margin: 0; }
+    header button { padding: .5rem .8rem; font-size: 1rem; cursor: pointer; }
+    /* The month grid: 7 equal columns (Sunday to Saturday). The grid draws the left and top
+       edges, and each cell draws its own right and bottom edges. */
     #grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
-            border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
-    .dow, .cell { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+            border-left: 1px solid #ccc; border-top: 1px solid #ccc; }
+    .dow, .cell { border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; }
+    /* .dow is a weekday header cell (Sun, Mon, ...); .cell is one day of the month */
     .dow { padding: .4rem; font-size: .8rem; font-weight: 600; text-align: center; }
     .cell { min-height: 96px; padding: .25rem; font-size: .78rem; }
     .num { display: inline-block; font-weight: 600; margin-bottom: .15rem; }
+    /* Today's date number gets a blue pill so it stands out */
     .today .num { background: #2563eb; color: white; border-radius: 999px; padding: 0 .4rem; }
-    .ev { background: rgba(37, 99, 235, .22); border-radius: 4px; padding: 1px 4px; margin-top: 2px;
+    .ev { background: rgba(37, 99, 235, .18); border-radius: 4px; padding: 1px 4px; margin-top: 2px;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .more { opacity: .7; margin-top: 2px; }
-    #asked { opacity: .7; margin: 1rem 0 .25rem; min-height: 1.2em; }
-    #answer { margin: 0 0 .75rem; min-height: 1.4em; white-space: pre-wrap; }
-    form { display: flex; gap: .5rem; }
-    input { flex: 1; padding: .6rem; font-size: 1rem; }
-    button { padding: .6rem .9rem; font-size: 1rem; cursor: pointer; }
-    #status { font-size: .85rem; opacity: .7; min-height: 1.2em; margin-top: .4rem; }
+    /* The "+N more" label when a day has more than three events */
+    .more { color: #555; margin-top: 2px; }
   </style>
 </head>
 <body>
-  <header>
-    <button id="prev" aria-label="Previous month">‹</button>
-    <h1 id="monthTitle"></h1>
-    <button id="today">Today</button>
-    <button id="next" aria-label="Next month">›</button>
-  </header>
+  <div class="layout">
+    <!-- Left panel: microphone, text box, and the model's reply -->
+    <aside class="side">
+      <!-- Click to start recording, click again to stop. The transcript is placed in the text box below. -->
+      <button type="button" id="mic" aria-label="Record voice">🎤</button>
+      <!-- Shows recording and transcription progress, or an error -->
+      <div id="status"></div>
+      <!-- Sending (the Send button, or Enter in the box) calls the model -->
+      <form id="form">
+        <textarea id="msg" rows="5" placeholder="Ask about your calendar or add an event..."></textarea>
+        <button id="send">Send</button>
+      </form>
+      <!-- Last request and the model's reply, filled in by send() -->
+      <p id="asked"></p>
+      <p id="answer"></p>
+    </aside>
 
-  <div id="grid"></div>
-
-  <p id="asked"></p>
-  <p id="answer"></p>
-  <form id="form">
-    <input id="msg" placeholder="Ask about your calendar or add an event..." autocomplete="off">
-    <button type="button" id="mic" aria-label="Record voice">🎤</button>
-    <button id="send">Send</button>
-  </form>
-  <div id="status"></div>
+    <!-- Right panel: monthly calendar, drawn into #grid by loadMonth() -->
+    <main>
+      <header>
+        <button id="prev" aria-label="Previous month">‹</button>
+        <h1 id="monthTitle"></h1>
+        <button id="today">Today</button>
+        <button id="next" aria-label="Next month">›</button>
+      </header>
+      <div id="grid"></div>
+    </main>
+  </div>
 
   <script>
+    // ===== Setup =====
+
+    // Variables
     const $ = (id) => document.getElementById(id);
     const pad = (n) => String(n).padStart(2, "0");
     const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-    let year, month; // month is 0-11 here
-    let lastId = null; // lets the model remember earlier turns
-    let recorder, chunks = [];
+    // State that changes while the page runs
+    let year, month; // the month being displayed; month is 0-11 here (JavaScript's convention)
+    let lastId = null; // ID of the model's last response, sent back so it remembers earlier turns
+    let recorder, chunks = []; // the active MediaRecorder and the audio pieces it has captured
 
+    // ===== Helper functions =====
+
+    // Shows a short message in the status line under the mic (pass "" to clear it)
     function setStatus(text) { $("status").textContent = text; }
 
+    // Turns an ISO timestamp like "2026-11-26T16:00:00-07:00" into "4:00 PM".
+    // All-day events only have a date (10 characters), so they return "" (no time shown).
     function fmtTime(iso) {
       if (!iso || iso.length <= 10) return ""; // all-day events have a date but no time
       let h = Number(iso.slice(11, 13));
@@ -68,6 +123,8 @@
       return `${h}:${m} ${ampm}`;
     }
 
+    // Creates an element with an optional CSS class and optional text.
+    // Uses textContent (not innerHTML) so event titles can never inject HTML into the page.
     function el(tag, className, text) {
       const node = document.createElement(tag);
       if (className) node.className = className;
@@ -75,10 +132,15 @@
       return node;
     }
 
+    // ===== Calendar =====
+
+    // Fetches the displayed month's events from the server (/api/events) and redraws the grid.
     async function loadMonth() {
+      // Month title, e.g. "November 2026"
       $("monthTitle").textContent = new Date(year, month, 1)
         .toLocaleString("en-US", { month: "long", year: "numeric" });
 
+      // Ask the server for this month's events (the API expects months as 1-12, hence + 1)
       let events = [];
       try {
         const res = await fetch(`/api/events?year=${year}&month=${month + 1}`);
@@ -89,31 +151,39 @@
         setStatus("Could not load calendar: " + e.message);
       }
 
+      // Group events by day, as { "2026-11-24": [event, event], ... }.
+      // The first 10 characters of the start time are the date in the calendar's timezone.
+      // "||=" creates the day's list the first time it is needed.
       const byDay = {};
       for (const ev of events) {
         const key = (ev.start || "").slice(0, 10); // YYYY-MM-DD in the calendar's timezone
         (byDay[key] ||= []).push(ev);
       }
 
+      // Clear the old grid, then add the weekday header row
       const grid = $("grid");
       grid.replaceChildren();
       for (const name of DAYS) grid.appendChild(el("div", "dow", name));
 
+      // leading = empty cells before the 1st so it lands under the right weekday
+      // daysInMonth = day 0 of the next month is the last day of this one
       const leading = new Date(year, month, 1).getDay();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const now = new Date();
       const todayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
+      // Blank cells first, then one cell per day of the month
       for (let i = 0; i < leading; i++) grid.appendChild(el("div", "cell"));
       for (let d = 1; d <= daysInMonth; d++) {
         const key = `${year}-${pad(month + 1)}-${pad(d)}`;
         const cell = el("div", key === todayKey ? "cell today" : "cell");
         cell.appendChild(el("span", "num", d));
+        // Show up to three events per day, then a "+N more" label for the rest
         const list = byDay[key] || [];
         for (const ev of list.slice(0, 3)) {
           const label = `${fmtTime(ev.start)} ${ev.summary}`.trim();
           const chip = el("div", "ev", label);
-          chip.title = label;
+          chip.title = label; // full text on hover, since the chip is truncated to one line
           cell.appendChild(chip);
         }
         if (list.length > 3) cell.appendChild(el("div", "more", `+${list.length - 3} more`));
@@ -121,6 +191,8 @@
       }
     }
 
+    // Moves the display forward (+1) or back (-1) by delta months, then redraws.
+    // Passing an out-of-range month to Date (like 12 or -1) rolls the year over automatically.
     function shiftMonth(delta) {
       const d = new Date(year, month + delta, 1);
       year = d.getFullYear();
@@ -128,6 +200,7 @@
       loadMonth();
     }
 
+    // Jumps back to the current month and redraws. Also used once at startup (last line of the script).
     function goToday() {
       const now = new Date();
       year = now.getFullYear();
@@ -135,19 +208,24 @@
       loadMonth();
     }
 
+    // ===== Talking to the model =====
+
+    // Disables or enables the Send and mic buttons, so a request can't be started twice at once
     function setBusy(busy) {
       $("send").disabled = busy;
       $("mic").disabled = busy;
     }
 
+    // Sends the text box contents to the server (/api/chat), shows the reply, then refreshes the calendar.
     async function send() {
       const text = $("msg").value.trim();
-      if (!text) return;
+      if (!text) return; // nothing typed, nothing to send
       setBusy(true);
       setStatus("");
       $("asked").textContent = "You: " + text;
       $("answer").textContent = "Thinking...";
       try {
+        // previous_response_id is what lets the model remember the conversation so far
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -165,13 +243,28 @@
       loadMonth(); // the model may have created an event
     }
 
+    // ===== Event listeners (wiring the page's controls to the functions above) =====
+
+    // Send button (or pressing Enter in the form) calls the model instead of reloading the page
     $("form").addEventListener("submit", (e) => { e.preventDefault(); send(); });
+    // Enter sends the message; Shift+Enter inserts a new line in the text box
+    $("msg").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } // Shift+Enter adds a new line
+    });
+    // Calendar navigation buttons
     $("prev").addEventListener("click", () => shiftMonth(-1));
     $("next").addEventListener("click", () => shiftMonth(1));
     $("today").addEventListener("click", goToday);
 
+    // ===== Microphone =====
+    // One button does two jobs. The first click starts recording; the second click stops it.
+    // After stopping, the audio is uploaded to the server (/api/transcribe) and the transcript is
+    // placed in the text box. It does not send automatically, so the text can be edited first.
     $("mic").addEventListener("click", async () => {
+      // Second click: stop recording (the onstop handler below then uploads the audio)
       if (recorder && recorder.state === "recording") { recorder.stop(); return; }
+
+      // First click: ask the browser for microphone access (it shows a permission prompt the first time)
       let stream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -179,13 +272,19 @@
         setStatus("Microphone unavailable: " + e.message);
         return;
       }
+
+      // Start capturing. The browser delivers the audio in pieces, which are collected in `chunks`.
       recorder = new MediaRecorder(stream);
       chunks = [];
       recorder.ondataavailable = (e) => chunks.push(e.data);
+
+      // Runs after recording stops: release the mic, reset the button, upload the audio
       recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
+        stream.getTracks().forEach((t) => t.stop()); // turns off the browser's recording indicator
         $("mic").textContent = "🎤";
+        $("mic").classList.remove("recording");
         setStatus("Transcribing...");
+        // Combine the pieces into one file. Chrome and Firefox record webm; Safari records mp4.
         const blob = new Blob(chunks, { type: recorder.mimeType });
         const ext = recorder.mimeType.includes("mp4") ? "m4a" : "webm";
         const form = new FormData();
@@ -202,11 +301,15 @@
           setStatus("Transcription failed: " + e.message);
         }
       };
+
+      // Begin recording and show it: stop icon, pulsing ring, and a status message
       recorder.start();
       $("mic").textContent = "⏹";
+      $("mic").classList.add("recording");
       setStatus("Listening... click the button again to stop.");
     });
 
+    // Show the current month as soon as the page loads
     goToday();
   </script>
 </body>

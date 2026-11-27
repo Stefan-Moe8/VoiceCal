@@ -26,12 +26,14 @@ def record_wav(seconds=6):
     return buf.getvalue()
 
 # Speech to text: returns the transcript and logs the cost
-def transcribe(wav, prompt=None):
+def transcribe(wav, prompt=None, filename="speech.wav", content_type="audio/wav"):
     """Speech to text: returns the transcript and logs the cost ($0.0045 per minute of audio)."""
     t0 = time.perf_counter()
     hint = {"prompt": prompt} if prompt else {}
-    result = voice_client.audio.transcriptions.create(model=STT_MODEL, file=("speech.wav", wav, "audio/wav"), **hint)
-    seconds = getattr(result.usage, "seconds", None) or len(wav) / PCM_BYTES_PER_SECOND
+    result = voice_client.audio.transcriptions.create(model=STT_MODEL, file=(filename, wav, content_type), **hint)
+    # The byte-count fallback  for raw WAV audio
+    fallback = len(wav) / PCM_BYTES_PER_SECOND if content_type == "audio/wav" else 0
+    seconds = getattr(result.usage, "seconds", None) or fallback
     log_usage("speech to text", STT_MODEL, time.perf_counter() - t0, audio_seconds=seconds)
     return result.text
 
