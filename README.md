@@ -60,7 +60,7 @@ CALENDAR_TZ=America/Denver
 
 3. **Share Your Google Calendar**
    1. Open [Google Calendar](https://calendar.google.com/).
-   2. Navigate to **Settings → Settings for my calendars** and select the calendar you want VoiceCal to access.
+   2. Navigate to **Settings → Settings for my calendars** and select the calendar that is under your name.
    3. Under **Share with specific people or groups**, add the service account's email address. You can find this email in the Google Cloud Console under **IAM & Admin → Service Accounts**.
    4. Grant the service account **Make changes to events** permission.
 
@@ -127,7 +127,25 @@ git commit -m "Resolve merge conflicts"
 git push
 ```
 Before committing, review your changes and run relevant tests to ensure the merged code still works.
+
 ## How to run the app
+1. **Set up your `.env` file** using the tutorial above, and make sure your Google Calendar is shared with the service account.
+2. **Install the dependencies** (once, ideally inside a virtual environment):
+
+   ```
+   pip install -r requirements.txt
+   ```
+
+3. **Start the server** from the project folder:
+
+   ```
+   python voice_cal.py
+   ```
+
+4. **Open the app** at the link it prints, `http://localhost:3000`.
+5. **Use it:** click the red microphone and speak (click again to stop), or type in the text box, then press Send. Your browser will ask for microphone permission the first time.
+
+To stop the app, press `Ctrl+C` in the terminal.
 
 ## Models and providers used
 - Gpt-6-luna
