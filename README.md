@@ -36,6 +36,34 @@ CALENDAR_ID=you@gmail.com
 # An IANA name, e.g. America/Denver
 CALENDAR_TZ=America/Denver
 ```
+
+#### Setup for `GOOGLE_SERVICE_ACCOUNT_FILE`
+
+1. **Create a Google Cloud Project**
+   1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
+   2. Create a new project or select an existing one.
+   3. Navigate to **APIs & Services → Library**.
+   4. Search for **Google Calendar API** and enable it.
+
+2. **Create a Service Account**
+   1. Navigate to **IAM & Admin → Service Accounts**.
+   2. Click **Create Service Account** and give it a name.
+   3. Open the newly created service account.
+   4. Navigate to **Keys → Add Key → Create New Key**.
+   5. Select **JSON**, download the key file, and place it in the project directory.
+   6. Add the path to the key file to your `.env` file:
+      ```env
+      GOOGLE_SERVICE_ACCOUNT_FILE=./service-account-key.json
+      ```
+
+   Keep this JSON file secure. It contains credentials that allow access to your Google Cloud service account. Never commit it to Git.
+
+3. **Share Your Google Calendar**
+   1. Open [Google Calendar](https://calendar.google.com/).
+   2. Navigate to **Settings → Settings for my calendars** and select the calendar you want VoiceCal to access.
+   3. Under **Share with specific people or groups**, add the service account's email address. You can find this email in the Google Cloud Console under **IAM & Admin → Service Accounts**.
+   4. Grant the service account **Make changes to events** permission.
+
 ## Daily Workflow
 
 #### 1. Pull the latest changes

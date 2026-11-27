@@ -1,0 +1,9 @@
+flask
+openai
+python-dotenv
+pandas
+numpy
+sounddevice
+google-api-python-client
+google-auth
+tzdata
